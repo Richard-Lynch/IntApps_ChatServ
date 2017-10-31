@@ -17,7 +17,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             global stopServer
             stopServer = True
             self.server.shutdown()
-        elif "HELO text\n" == data:
+        elif data.startswith("HELO "):
             response = data + "IP:[{}]\nPort:[{}]\nStudentID:[{}]\n".format(self.server.server_address[0], self.server.server_address[1], 12302202)
         else:
             response = "{}: {}".format(cur_thread.name, data)
