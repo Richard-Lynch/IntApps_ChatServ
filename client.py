@@ -11,7 +11,7 @@ def client(ip, port, message):
         print ("Sending: {}".format(message))
         sock.sendall(message.encode())
         response = sock.recv(1024).decode()
-        print("Received: {}".format(response))
+        print("Received: \n{}".format(response))
     finally:
         sock.close()
 
