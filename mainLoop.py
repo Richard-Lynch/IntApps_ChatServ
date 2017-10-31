@@ -11,7 +11,7 @@ from time import sleep
 
 if __name__ == "__main__":
     # port 0 means to select an arbitrary unused port
-    HOST, PORT = "localhost", 0
+    HOST, PORT = "0.0.0.0", 0
     if len(sys.argv) > 1:
         print ("The port number to use is: ", sys.argv[1])
         PORT = int ( sys.argv[1] ) 
