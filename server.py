@@ -135,12 +135,12 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-    # pass
+    self.chat_room = chatRoom()
     
     # def __init__(self, server_address, request_hanler):
 
     #     print ("initing")
-class charRoom ():
+class chatRoom ():
     def initialise(self):
         self.num_rooms = 0
         self.num_clients = 0
