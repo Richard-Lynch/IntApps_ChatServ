@@ -3,6 +3,8 @@
 import socket
 import sys
 def client(ip, port, message):
+    print ("IP:", ip, type(ip))
+    print ("Port:", port, type(port))
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((ip, port))
     try:

@@ -11,8 +11,11 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         data = self.request.recv(1024).decode()
         cur_thread = threading.current_thread()
+        print ("data:", data, type(data))
         if "KILL_SERVICE\n" == data:
             response = "Server is going down, run it again manually!"
+            global stopServer
+            stopServer = True
             self.server.shutdown()
         elif "HELO text\n" == data:
             response = data + "IP:[{}]\nPort:[{}]\nStudentID:[{}]\n".format(self.server.server_address[0], self.server.server_address[1], 12302202)
