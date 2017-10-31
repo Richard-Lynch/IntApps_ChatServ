@@ -8,7 +8,7 @@ def client(ip, port, message):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((ip, port))
     try:
-        print ("Sending: {}".format(message))
+        print ("Sending: \n{}".format(message))
         sock.sendall(message.encode())
         response = sock.recv(1024).decode()
         print("Received: \n{}".format(response))
