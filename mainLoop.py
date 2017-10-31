@@ -20,6 +20,7 @@ if __name__ == "__main__":
         PORT = int ( sys.argv[1] ) 
 
     server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
+    server.initialise()
     ip, port = server.server_address
     print ( "Port:", port, type(port))
     print ( "IP:", ip, type(ip))
