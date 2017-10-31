@@ -60,7 +60,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
     def actually_join(self, parsed_data):
         response = ""
         response += "JOINED_CHATROOM: {}\n".format(parsed_data["JOIN_CHATROOM"])
-        # IP = ipgetter.myip()
+        IP = ipgetter.myip()
+        print (IP)
         response += "SERVER_IP: {}\n".format(self.server.server_address[0])
         response += "PORT: {}\n".format(self.server.server_address[1])
         response += "ROOM_REF: {}\n".format(23)
