@@ -64,17 +64,26 @@ class client():
                     # user entered a message
                     msg = sys.stdin.readline()
                     commands = msg.split()
+                    print("len:", len(commands))
                     if commands[0].startswith("send"):
+                        print ("in send")
                         if len(commands) > 2:
+                            print ("past send if")
                             self.send(commands[1], commands[1:])
                     elif commands[0].startswith("join"):
+                        print ("in join")
                         if len(commands) == 2:
+                            print ("past join if")
                             self.join(commands[1])
                     elif commands[0].startswith("leave"):
+                        print ("in leave")
                         if len(commands) == 2:
+                            print ("past leave if")
                             self.leave(commands[1])
                     elif commands[0].startswith("term"):
+                        print ("in term")
                         if len(commands) == 2:
+                            print ("past term if")
                             self.term(commands[1]) 
                     sys.stdout.write('[Me] '); sys.stdout.flush() 
 
