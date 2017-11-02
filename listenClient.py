@@ -37,10 +37,10 @@ class client():
         self.sock.sendall(msg.encode())
         response = self.sock.recv(1024).decode()
         print("Received: \n{}".format(response))
-        lines = parseLines(response)
+        lines = self.parseLines(response)
         print ("lines:", lines)
         parsed_data = { "CLIENT_IP" : None, "PORT" : None, "CLIENT_NAME" : None, "JOIN_CHATROOM" : None } 
-        parsed_data = parseData(lines, parsed_data)
+        parsed_data = self.parseData(lines, parsed_data)
         return parsed_data
 
     def loop(self):
@@ -80,18 +80,18 @@ class client():
     def send(self, room, message):
         mess = "".join(message)
         msg = "\
-        CHAT: 0\n\
-        JOIN_ID: {}\n\
-        CLIENT_NAME: Richie\n\
-        MESSAGE: {}\n".format(self.port, mess)
+CHAT: 0\n\
+JOIN_ID: {}\n\
+CLIENT_NAME: Richie\n\
+MESSAGE: {}\n".format(self.port, mess)
         self.sock.send(msg.encode())
 
     def join(self, room):
         msg = "\
-        JOIN_CHATROOM: {}\n\
-        CLIENT_IP: 0\n\
-        PORT: 0\n\
-        CLIENT_NAME: Richie\n".format(room)
+JOIN_CHATROOM: {}\n\
+CLIENT_IP: 0\n\
+PORT: 0\n\
+CLIENT_NAME: Richie\n".format(room)
         return msg
         # self.sock.send(msg.encode())
 
