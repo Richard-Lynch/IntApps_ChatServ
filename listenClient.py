@@ -126,5 +126,5 @@ class client():
                             msg = True
                         expected[key] = "{}".format(parsedLine[1])
         return expected
-port = sys.argv[1]
+port = int(sys.argv[1])
 sys.exit(client("0.0.0.0", port, "helloWorld"))
