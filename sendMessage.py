@@ -4,11 +4,6 @@
 from client import client
 import sys
 ip = "localhost"
-message = "\
-JOIN_CHATROOM: helloWorld\n\
-CLIENT_IP: 0\n\
-PORT: 0\n\
-CLIENT_NAME: Richie\n"
 if len(sys.argv) > 1:
     print ("Port: ", sys.argv[1])
     port = int(sys.argv[1])
@@ -18,5 +13,10 @@ else:
     print ("port number needed")
     exit()
 
+message = "\
+CHAT: 0\n\
+JOIN_ID: {}\n\
+CLIENT_NAME: Richie\n\
+MESSAGE: testing\n".format(port)
 client (ip, port, message)
 

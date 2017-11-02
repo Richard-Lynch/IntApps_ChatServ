@@ -16,10 +16,10 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         commands = {
                 'KILL_SERVICE' : self.kill_service, 
                 'HELO' : self.helo_info, 
-                'JOIN_CHATROOM:' : self.join_chatroom, 
-                'LEAVE_CHATROOM:' : self.leave_chatroom,
-                'DISCONNECT:' : self.disconnect_client,
-                'CHAT' : self.chat
+                'JOIN_CHATROOM:' : self.join_chatroom
+                # 'LEAVE_CHATROOM:' : self.leave_chatroom,
+                # 'DISCONNECT:' : self.disconnect_client,
+                # 'CHAT' : self.chat
                 } 
         
         data = self.request.recv(1024).decode()
@@ -58,64 +58,56 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
     def parseData(self, dataLines, expected):
         msg = False
         for i, line in enumerate(dataLines):
-            if msg == True:
-                expected[key] = "{}\n".format(expected[key])
-                parsedLine = self.parseCommands(line)
-                values = ""
-                for value in parsedLine:
-                    values += "{} ".format(str(value))
-                expected[key] += "{}".format(values)
-            else:
-                for key in expected:
-                    if key in line:
-                        parsedLine = self.parseCommands(line)
-                        if parsedLine[0].startswith("MESSAGE"):
-                            msg = True
-                        expected[key] = "{}".format(parsedLine[1])
+            for key in expected:
+                if key in line:
+                    parsedLine = self.parseCommands(line)
+                    expected[key] = "{}".format(parsedLine[1])
         return expected
 
     def join_chatroom(self, data, dataLines):
         parsed_data = { "CLIENT_IP" : None, "PORT" : None, "CLIENT_NAME" : None, "JOIN_CHATROOM" : None } 
         parsed_data = self.parseData(dataLines, parsed_data)
+        ref, port = self.server.chat_room.join_chatroom(parsed_data)
         lines = [ 
-                (   "JOINED_CHATROOM: ",        parsed_data["JOIN_CHATROOM"]     ),
-                (   "SERVER_IP: ",              str(ipgetter.myip())             ),
-                (   "PORT: ",                   self.server.server_address[1]    ),
-                (   "ROOM_REF: ",               23                               ),
-                (   "JOIN_ID: ",                123                              )
+                (   "JOINED_CHATROOM: ",        parsed_data["JOIN_CHATROOM"]    ),
+                (   "SERVER_IP: ",              str(ipgetter.myip())            ),
+                (   "PORT: ",                   port                            ),
+                (   "ROOM_REF: ",               ref                             ),
+                (   "JOIN_ID: ",                port                            )
                 ]
-        self.server.chat_room.join_chatroom(parsed_data)
         return self.compose_msg(lines)
         
 
-    def leave_chatroom(self, data, dataLines):
-        parsed_data = { "JOIN_ID" : None, "CLIENT_NAME" : None, "LEAVE_CHATROOM" : None } 
-        parsed_data = self.parseData(dataLines, parsed_data)
-        lines = [
-                (   "LEFT_CHATROOM: ",          parsed_data["LEAVE_CHATROOM"]   ),
-                (   "JOIN_ID: ",                parsed_data["JOIN_ID"]          ),
-                (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      )
-                ]
-        return self.compose_msg(lines)
+    # def leave_chatroom(self, data, dataLines):
+    #     parsed_data = { "JOIN_ID" : None, "CLIENT_NAME" : None, "LEAVE_CHATROOM" : None } 
+    #     parsed_data = self.parseData(dataLines, parsed_data)
+    #     lines = [
+    #             (   "LEFT_CHATROOM: ",          parsed_data["LEAVE_CHATROOM"]   ),
+    #             (   "JOIN_ID: ",                parsed_data["JOIN_ID"]          ),
+    #             (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      )
+    #             ]
+    #     self.server.chat_room.leave_chatroom(parsed_data)
+    #     return self.compose_msg(lines)
     
 
-    def chat (self, data, dataLines):
-        parsed_data = { "CHAT" : None, "JOIN_ID" : None, "CLIENT_NAME" : None, "MESSAGE" : None }
-        parsed_data = self.parseData(dataLines, parsed_data)
-        print (parsed_data["MESSAGE"])
-        lines = [
-                (   "CHAT: ",                   parsed_data["CHAT"]             ),
-                (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      ),
-                (   "MESSAGE: ",                parsed_data["MESSAGE"]          )
-                ]
-        return self.compose_msg(lines)
+    # def chat (self, data, dataLines):
+    #     parsed_data = { "CHAT" : None, "JOIN_ID" : None, "CLIENT_NAME" : None, "MESSAGE" : None }
+    #     parsed_data = self.parseData(dataLines, parsed_data)
+    #     print (parsed_data["MESSAGE"])
+    #     lines = [
+    #             (   "CHAT: ",                   parsed_data["CHAT"]             ),
+    #             (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      ),
+    #             (   "MESSAGE: ",                parsed_data["MESSAGE"]          )
+    #             ]
+    #     self.server.chat_room.leave_chatroom(parsed_data)
+    #     return self.compose_msg(lines)
     
 
-    def disconnect_client (self, data, dataLines):
-        parsed_data = { "DISCONNECT" : None, "PORT" : None, "CLIENT_NAME" : None }
-        parsed_data = self.parseData(dataLines, parsed_data)
-        response = "Terminating Connection"
-        return response
+    # def disconnect_client (self, data, dataLines):
+    #     parsed_data = { "DISCONNECT" : None, "PORT" : None, "CLIENT_NAME" : None }
+    #     parsed_data = self.parseData(dataLines, parsed_data)
+    #     response = "Terminating Connection"
+    #     return response
 
     def kill_service(self, data, dataLines):
         response = "Server is going down, run it again manually!"

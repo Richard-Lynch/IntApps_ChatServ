@@ -1,5 +1,10 @@
 #!/usr/local/bin/python3
 
+from clientServer import clientServer
+import threading
+import socket as sock
+import select
+import sys
 class chatRoom ():
     def __init__(self):
         self.num_rooms = 0
@@ -7,6 +12,7 @@ class chatRoom ():
         self.room2ref = {}
         self.ref2room = {}
         self.ref2id = {}
+        self.id2server = {} 
         self.id2ref = {}
         self.id2name = {}
         self.name2id = {}
@@ -14,16 +20,21 @@ class chatRoom ():
         # self.clientLock = threading.Lock()
 
     def join_chatroom(self, parsed_data):
-        ref = self.getRoom(parsed_data["JOIN_ROOM"])
+        print ("in j_c in cr")
+        ref = self.getRoom(parsed_data["JOIN_CHATROOM"])
         cID = self.getClient(parsed_data["CLIENT_NAME"])
-        return self.addToRoom(ref, client)
+        print ("ref:", ref)
+        print ("cID", cID)
+        if self.add2room(ref, cID) == 0:
+            print ("add2room == 0")
+        return ref, cID
+
     def add2room(self, ref, cID):
-        if cID in self.ref2id[ref] or ref in self.id2ref[cID]:
-            return 1
-        else:
-            self.ref2id[ref].append(cID)
-            self.id2ref[cID].append(ref)
-            return 0
+        print ("ref:", ref)
+        print ("cID:", cID)
+        self.ref2id[ref].append(cID)
+        self.id2ref[cID].append(ref)
+        return 0
 
     def leave_chatroom(self, parsed_data):
         ref = parsed_data["LEAVE_CHATROOM"]
@@ -37,6 +48,16 @@ class chatRoom ():
         else:
             return 2
         return 0
+
+    # def chat(self, ref, message):
+    #     for key in self.ref2id:
+    #         print (key, type(key))
+    #     for member in self.ref2id[int(ref)]:
+    #         server = self.id2server[member]
+    #         socket = sock.socket(sock.AF_INET, sock.SOCK_STREAM)
+    #         ip, port = server.server_address
+    #         socket = server.socket
+    #         socket.sendto(message.encode(), (ip, port))
 
     def disconnect_from_server(self, parsed_data):
         name = parsed_data["CLIENT_NAME"]
@@ -64,21 +85,40 @@ class chatRoom ():
             return self.room2ref[room_name]
         else:
             return self.createRoom(room_name)
-    def getClient(self, client_name):
-        if client_name in self.name2id:
-            return self.name2id[client_name]
-        else:
-            return self.createClient(client_name)
-
     def createRoom(self, room_name):
         self.room2ref[room_name] = self.num_rooms
         self.ref2room[self.num_rooms] = room_name
         self.ref2id[self.num_rooms] = []
         self.num_rooms += 1
         return self.num_rooms - 1
+    def findRoom(self, room_ref):
+        if room_ref in self.ref2id:
+            return self.ref2id[room_ref]
+        else:
+            return [None]
+
     def createClient(self, client_name):
-        self.name2id[client_name] = self.num_clients
-        self.id2name[self.num_clients] = client_name
-        self.id2ref = []
+        server, port = self.startServer()
+        self.id2server[port] = server
+        self.name2id[client_name] = port
+        self.id2name[port] = client_name
+        self.id2ref[port] = []
         self.num_clients += 1
-        return num_clients - 1
+        return port
+
+    def getClient(self, client_name):
+        if client_name in self.name2id:
+            return self.name2id[client_name]
+        else:
+            return self.createClient(client_name)
+
+    def startServer(self):
+        HOST, PORT = "0.0.0.0", 0
+        server = clientServer((HOST, PORT), self)
+        # start a thread with the server. 
+        server_thread = threading.Thread(target=server.loop)
+        # exit the server thread when the main thread terminates
+        server_thread.daemon = True
+        server_thread.start()
+        port = server.client_socket.getsockname()[1]
+        return server, port
