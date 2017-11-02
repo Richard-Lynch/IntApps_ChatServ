@@ -74,7 +74,7 @@ class client():
                         print ("in join")
                         if len(commands) == 2:
                             print ("past join if")
-                            self.join(commands[1])
+                            self.sock.send(self.join(commands[1]).encode())
                     elif commands[0].startswith("leave"):
                         print ("in leave")
                         if len(commands) == 2:
