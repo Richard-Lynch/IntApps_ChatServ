@@ -32,8 +32,9 @@ class client():
             print ("unable to connect")
 
     def joinChatroom(self, message):
-        print ("Sending: \n{}".format(message))
-        self.sock.sendall(message.encode())
+        msg = join(message)
+        print ("Sending: \n{}".format(msg))
+        self.sock.sendall(msg.encode())
         response = self.sock.recv(1024).decode()
         print("Received: \n{}".format(response))
         lines = parseLines(response)
@@ -91,7 +92,8 @@ class client():
         CLIENT_IP: 0\n\
         PORT: 0\n\
         CLIENT_NAME: Richie\n".format(room)
-        self.sock.send(msg.encode())
+        return msg
+        # self.sock.send(msg.encode())
 
     def leave(self, room):
         pass
