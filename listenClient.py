@@ -32,7 +32,7 @@ class client():
             print ("unable to connect")
 
     def joinChatroom(self, message):
-        msg = join(message)
+        msg = self.join(message)
         print ("Sending: \n{}".format(msg))
         self.sock.sendall(msg.encode())
         response = self.sock.recv(1024).decode()
