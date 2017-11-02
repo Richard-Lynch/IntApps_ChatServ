@@ -8,11 +8,12 @@ class client():
         print ("in init")
         self.joinFirst(ip, port, message)
         print ("finished joining")
-        read_sockets, write_sockets, error_sockets = select.select([lsock], [], [])
-        while 1:
-            (conn, (IP, PORT)) = lsock.accept()
-            response = conn.recv(1024).decode()
-            print("Received: \n{}".format(response))
+        self.loop()
+        # read_sockets, write_sockets, error_sockets = select.select([self.sock], [], [])
+        # while 1:
+        #     (conn, (IP, PORT)) = lsock.accept()
+        #     response = conn.recv(1024).decode()
+        #     print("Received: \n{}".format(response))
 
     def joinFirst(self, ip, port, message):
         print ("IP:", ip, type(ip))
