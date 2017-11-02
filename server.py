@@ -21,7 +21,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                 # 'DISCONNECT:' : self.disconnect_client,
                 # 'CHAT' : self.chat
                 } 
-        
+         
         data = self.request.recv(1024).decode()
         cur_thread = threading.current_thread()
         print ("data:", data, type(data))

@@ -19,7 +19,7 @@ class client():
         print ("Port:", port, type(port))
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((ip, port))
-        parsed_data = joinChatroom(message)
+        parsed_data = self.joinChatroom(message)
         print ("parsed:", parsed_data)
         self.sock.close()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -126,5 +126,5 @@ class client():
                             msg = True
                         expected[key] = "{}".format(parsedLine[1])
         return expected
-
-sys.exit(client("172.31.16.227", 8080, "helloWorld"))
+port = sys.argv[1]
+sys.exit(client("0.0.0.0", port, "helloWorld"))
