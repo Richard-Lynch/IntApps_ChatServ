@@ -40,7 +40,7 @@ class client():
     def joinChatroom(self, message):
         msg = self.join(message)
         print ("Sending: \n{}".format(msg))
-        self.sock.sendall(msg.encode())
+        # self.sock.sendall(msg.encode())
         response = self.sock.recv(1024).decode()
         print("Received: \n{}".format(response))
         lines = self.parseLines(response)
@@ -50,6 +50,7 @@ class client():
         return parsed_data
 
     def loop(self):
+        sys.stdout.write('[Me] '); sys.stdout.flush() 
         while 1:
             socket_list = [sys.stdin, self.sock]
             # Get the list sockets which are readable
@@ -69,50 +70,63 @@ class client():
                     # user entered a message
                     msg = sys.stdin.readline()
                     commands = msg.split()
-                    # print("len:", len(commands))
+                    print ("command:", commands[0])
+                    print("len:", len(commands))
+
                     if commands[0].startswith("send"):
                         # print ("in send")
                         if len(commands) > 1:
                             # print ("past send if")
-                            self.send(commands[1:])
+                            if len(commands) > 2:
+                                self.send(commands[1], commands[2:])
+                            else:
+                                self.send(self.ref, commands[1:])
+
                     elif commands[0].startswith("join"):
                         # print ("in join")
-                        if len(commands) == 2:
+                        if len(commands) > 1:
                             # print ("past join if")
-                            self.sock.send(self.join(commands[1]).encode())
+                            self.join(commands[1])
                     elif commands[0].startswith("leave"):
                         # print ("in leave")
-                        if len(commands) == 2:
+                        if len(commands) > 1:
                             # print ("past leave if")
                             self.leave(commands[1])
                     elif commands[0].startswith("term"):
                         # print ("in term")
-                        if len(commands) == 2:
+                        if len(commands) > 1:
                             # print ("past term if")
-                            self.term(commands[1]) 
+                            self.term(commands[1])
                     sys.stdout.write('[Me] '); sys.stdout.flush() 
 
-    def send(self, message):
+    def send(self, Room, message):
         mess = " ".join(message)
         msg = "\
 CHAT: {}\n\
 JOIN_ID: {}\n\
 CLIENT_NAME: {}\n\
-MESSAGE: {}\n".format(self.ref, self.id, self.name, mess)
+MESSAGE: {}\n".format(int(Room), self.id, self.name, mess)
         print (msg)
         self.sock.send(msg.encode())
+        return msg
 
-    def join(self, room):
+    def join(self, Room):
         msg = "\
 JOIN_CHATROOM: {}\n\
 CLIENT_IP: 0\n\
 PORT: 0\n\
-CLIENT_NAME: {}\n".format(room, self.name)
+CLIENT_NAME: {}\n".format(Room, self.name)
+        self.sock.send(msg.encode())
         return msg
-        # self.sock.send(msg.encode())
 
-    def leave(self, room):
-        pass
+    def leave(self, Room):
+        msg = "\
+LEAVE_CHATROOM: {}\n\
+JOIN_ID: {}\n\
+CLIENT_NAME: {}\n".format(Room, self.id, self.name)
+        # return msg
+        self.sock.send(msg.encode())
+        return msg
     def term(self):
         pass
 

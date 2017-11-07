@@ -53,7 +53,7 @@ class chatRoom ():
             self.members[cID].rooms.append(ref)
         return ref, cID
 
-    def leave_chatroom(self, parsed_data):
+    def leave_chatroom(self, parsed_data, sock):
         ref = parsed_data["LEAVE_CHATROOM"]
         cID = parsed_data["JOIN_ID"]
         if ref in self.rooms and cID in self.rooms[ref].members:

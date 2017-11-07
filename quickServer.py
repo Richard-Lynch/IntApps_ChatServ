@@ -57,7 +57,7 @@ class chat_server():
             # broadcast(server_socket, sock, "Client (%s, %s) is offline\n" % addr) 
             print ("Client (%s, %s) is offline(hand_client)\n" % sock.getsockname())
             # remove the socket that's broken    
-            self.SOCKET_LIST.remove(sock)
+            self.remove_sock(sock)
 
         return True
 
@@ -159,7 +159,7 @@ class chat_server():
                         if parsedLine[0].startswith("MESSAGE"):
                             msg = True
                             mkey = key
-                        expected[key] = "{}".format(parsedLine[1])
+                        expected[key] = " ".join(parsedLine[1:])
         return expected
     # def parseData(self, dataLines, expected):
     #     msg = False
@@ -173,14 +173,18 @@ class chat_server():
     def join_chatroom(self, sock, data, dataLines):
         parsed_data = { "CLIENT_IP" : None, "PORT" : None, "CLIENT_NAME" : None, "JOIN_CHATROOM" : None } 
         parsed_data = self.parseData(dataLines, parsed_data)
-        ref, port = self.chat_room.join_chatroom(parsed_data, sock)
+        ref, cID = self.chat_room.join_chatroom(parsed_data, sock)
         lines = [ 
                 (   "JOINED_CHATROOM: ",        parsed_data["JOIN_CHATROOM"]    ),
                 (   "SERVER_IP: ",              str(ipgetter.myip())            ),
-                (   "PORT: ",                   port                            ),
+                (   "PORT: ",                   sock.getsockname()[1]           ),
                 (   "ROOM_REF: ",               ref                             ),
-                (   "JOIN_ID: ",                port                            )
+                (   "JOIN_ID: ",                cID                             )
                 ]
+        memberIDs, memberSockets = self.chat_room.getMembers(ref)
+        if cID in memberIDs:
+            msg = "{} has joined {} room\n".format(parsed_data["CLIENT_NAME"], parsed_data["JOIN_CHATROOM"])
+            self.broadcast (memberSockets, sock, msg)
         return self.compose_msg(lines)
     def kill_service(self, sock, data, dataLines):
         response = "Server is going down, run it again manually!"
@@ -220,11 +224,31 @@ class chat_server():
                 self.broadcast (memberSockets, sock, msg)
         return None
         # return send, self.compose_msg(lines)
-    def leave_chatroom(self):
-        pass
+
+    def leave_chatroom(self, sock, data, dataLines):
+        parsed_data = { "JOIN_ID" : None, "CLIENT_NAME" : None, "LEAVE_CHATROOM" : None } 
+        parsed_data = self.parseData(dataLines, parsed_data)
+        lines = [
+                (   "LEFT_CHATROOM: ",          parsed_data["LEAVE_CHATROOM"]   ),
+                (   "JOIN_ID: ",                parsed_data["JOIN_ID"]          ),
+                (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      )
+                ]
+        memberIDs, memberSockets = self.chat_room.getMembers(int(parsed_data["LEAVE_CHATROOM"]))
+        response = None
+        if int(parsed_data["JOIN_ID"]) in memberIDs:
+            msg = "{} has left chatroom {}\n".format(\
+                    parsed_data["CLIENT_NAME"], \
+                    self.chat_room.rooms[int(parsed_data["LEAVE_CHATROOM"])].name)
+            self.broadcast(memberSockets, sock, msg)
+            self.chat_room.leave_chatroom(parsed_data, sock)
+            response = self.compose_msg(lines)
+        return response
+
+    # def leave_chatroom(self):
+    #     pass
     def disconnect_client(self):
         pass
 
 if __name__ == "__main__":
     server = chat_server()
-    
+    server.starts() 
