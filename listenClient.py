@@ -23,13 +23,13 @@ class client():
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((ip, port))
         parsed_data = self.joinChatroom(message)
-        print ("parsed:", parsed_data)
+        # print ("parsed:", parsed_data)
         # self.sock.close()
         # self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.ip, self.port = self.sock.getsockname()
         self.id = parsed_data["JOIN_ID"]
         self.ref = parsed_data["ROOM_REF"]
-        print (self.port)
+        # print (self.port)
         # self.port = int(parsed_data["PORT"])
         # print ("port", self.port)
         # try:
@@ -44,13 +44,13 @@ class client():
         response = self.sock.recv(1024).decode()
         print("Received: \n{}".format(response))
         lines = self.parseLines(response)
-        print ("lines:", lines)
+        # print ("lines:", lines)
         parsed_data = { "JOINED_CHATROOM" : None, "SERVER_IP" : None, "PORT" : None,  "ROOM_REF" : None, "JOIN_ID" : None } 
         parsed_data = self.parseData(lines, parsed_data)
         return parsed_data
 
     def loop(self):
-        sys.stdout.write('[Me] '); sys.stdout.flush() 
+        sys.stdout.write('[{}] '.format(self.name)); sys.stdout.flush() 
         while 1:
             socket_list = [sys.stdin, self.sock]
             # Get the list sockets which are readable
@@ -64,14 +64,14 @@ class client():
                         sys.exit()
                     else :
                         #print data
-                        sys.stdout.write("\r" + data.decode())
-                        sys.stdout.write('[Me] '); sys.stdout.flush() 
+                        sys.stdout.write("\rRecieved:\n" + data.decode())
+                        sys.stdout.write('[{}] '.format(self.name)); sys.stdout.flush() 
                 else:
                     # user entered a message
                     msg = sys.stdin.readline()
                     commands = msg.split()
-                    print ("command:", commands[0])
-                    print("len:", len(commands))
+                    # print ("command:", commands[0])
+                    # print("len:", len(commands))
 
                     if commands[0].startswith("send"):
                         # print ("in send")
@@ -97,7 +97,11 @@ class client():
                         if len(commands) > 1:
                             # print ("past term if")
                             self.term(commands[1])
-                    sys.stdout.write('[Me] '); sys.stdout.flush() 
+                    elif commands[0].startswith("kill"):
+                        # print ("in term")
+                        # print ("past term if")
+                        self.kill()
+                    sys.stdout.write('[{}] '.format(self.name)); sys.stdout.flush() 
 
     def send(self, Room, message):
         mess = " ".join(message)
@@ -106,7 +110,7 @@ CHAT: {}\n\
 JOIN_ID: {}\n\
 CLIENT_NAME: {}\n\
 MESSAGE: {}\n".format(int(Room), self.id, self.name, mess)
-        print (msg)
+        print ("Sending:\n{}".format(msg))
         self.sock.send(msg.encode())
         return msg
 
@@ -116,6 +120,7 @@ JOIN_CHATROOM: {}\n\
 CLIENT_IP: 0\n\
 PORT: 0\n\
 CLIENT_NAME: {}\n".format(Room, self.name)
+        print ("Sending:\n{}".format(msg))
         self.sock.send(msg.encode())
         return msg
 
@@ -125,6 +130,14 @@ LEAVE_CHATROOM: {}\n\
 JOIN_ID: {}\n\
 CLIENT_NAME: {}\n".format(Room, self.id, self.name)
         # return msg
+        print ("Sending:\n{}".format(msg))
+        self.sock.send(msg.encode())
+        return msg
+
+    def kill(self):
+        msg = "KILL_SERVICE\n"
+        # return msg
+        print ("Sending:\n{}".format(msg))
         self.sock.send(msg.encode())
         return msg
     def term(self):

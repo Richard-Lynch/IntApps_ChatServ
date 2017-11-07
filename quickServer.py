@@ -40,15 +40,30 @@ class chat_server():
         print ("Chat server started on port " + str(self.PORT))
 
     def remove_sock(self, sock):
-        sock.close()
-        if sock in self.SOCKET_LIST:
-            self.SOCKET_LIST.remove(sock)
+        try:
+            print ("trying to remove sock from list")
+            if sock in self.SOCKET_LIST:
+                self.SOCKET_LIST.remove(sock)
+                print ("removed from list")
+            else:
+                print ("sock not in list")
+        except:
+            print ("couldnt remove socket from SOCKET_LIST")
+        # try:
+        #     sock.close()
+        #     print ("closed sock")
+        # except:
+        #     print ("couldnt close sock")
     
     def hand_client_message(self, sock):
         # receiving data from the socket.
-        data = sock.recv(self.RECV_BUFFER).decode()
+        try:
+            data = sock.recv(self.RECV_BUFFER).decode()
+        except:
+            self.remove_sock(sock)
+            return
         if data:
-            print ("data in hcm:", data)
+            print ("Received:\n{}".format( data ))
             response = self.handle(sock, data)
             if response != None:
                 self.respond(sock, response)
@@ -66,34 +81,29 @@ class chat_server():
             sock.send(response.encode())
         except :
             # broken socket connection
-            print ("removed by respond")
+            print ("Client (%s, %s) is offline(respond)\n" % sock.getsockname())
             sock.close()
-            # broken socket, remove it
-            if sock in self.SOCKET_LIST:
-                self.SOCKET_LIST.remove(socket)
+            self.remove_sock(sock)
 
     def handle(self, sock, data):
-        print ("data", data)
         dataLines = self.parseLines(data)
         firstLine = self.parseCommands(dataLines[0])
         print ("parsed", dataLines)
         commandMatched = False
         for command in self.server_commands:
-            # print ("checking:", command)
-            # print ("line:", firstLine[0])
             if firstLine[0].startswith(str(command)):
-                # print ("command matched:", commands[command])
                 response = self.server_commands[command](sock, data, dataLines)
                 commandMatched = True
                 break
         if commandMatched == False:
-            print ("response = msg")
+            print ("no command matched")
             self.broadcast(self.SOCKET_LIST, sock, '[' + str(sock.getpeername()) + '] \n' + data)
             response = None
         return response
 
     def starts(self):
-        while 1:
+        self.run = True
+        while self.run == True:
             # get the list sockets which are ready to be read through select
             # 4th arg, time_out  = 0 : poll and never block
             ready_to_read,ready_to_write,in_error = select.select(self.SOCKET_LIST,[],[],0)
@@ -108,8 +118,9 @@ class chat_server():
                 # a message from a client, not a new connection
                 else:
                     _thread.start_new_thread(self.hand_client_message, (sock, ))
-
-        self.server_socket.close()
+        for sock in self.SOCKET_LIST:
+            sock.close()
+        # self.server_socket.close()
         
 # broadcast chat messages to all connected clients
     def broadcast (self, socket_list, sock, message):
@@ -120,11 +131,8 @@ class chat_server():
                     socket.send(message.encode())
                 except :
                     # broken socket connection
-                    print ("removed by broadcast")
-                    socket.close()
-                    # broken socket, remove it
-                    if socket in self.SOCKET_LIST:
-                        self.SOCKET_LIST.remove(socket)
+                    print ("Client (%s, %s) is offline(broadcast)\n" % sock.getsockname())
+                    self.remove_sock(sock)
 # util functions 
     def compose_msg(self, output):
         response = ""
@@ -144,13 +152,10 @@ class chat_server():
         msg = False
         mkey = None
         for i, line in enumerate(dataLines):
-            print ("line:", line)
             if msg == True:
                 expected[mkey] = "{}\n".format(expected[mkey])
                 parsedLine = self.parseCommands(line)
-                values = ""
-                for value in parsedLine:
-                    values += "{} ".format(str(value))
+                values = " ".join(parsedLine)
                 expected[key] += "{}".format(values)
             else:
                 for key in expected:
@@ -188,6 +193,7 @@ class chat_server():
         return self.compose_msg(lines)
     def kill_service(self, sock, data, dataLines):
         response = "Server is going down, run it again manually!"
+        self.run = False
         # global stopServer
         # stopServer = True
         # self.server.shutdown()
@@ -207,7 +213,6 @@ class chat_server():
         return self.compose_msg(lines)
 # client commands
     def chat (self, sock, data, dataLines):
-        print ("datalines")
         parsed_data = { "CHAT" : None, "JOIN_ID" : None, "CLIENT_NAME" : None, "MESSAGE" : None }
         parsed_data = self.parseData(dataLines, parsed_data)
         print (parsed_data["MESSAGE"])

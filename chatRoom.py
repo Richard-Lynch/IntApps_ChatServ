@@ -42,11 +42,11 @@ class chatRoom ():
         # self.num_membersLock = Lock()
 
     def join_chatroom(self, parsed_data, sock):
-        print ("in j_c in cr")
+        # print ("in j_c in cr")
         ref = self.getRoom(parsed_data["JOIN_CHATROOM"])
         cID = self.getClient(parsed_data["CLIENT_NAME"], sock)
-        print ("ref:", ref)
-        print ("cID", cID)
+        # print ("ref:", ref)
+        # print ("cID", cID)
         if cID not in self.rooms[ref].members:
             self.rooms[ref].members.append(cID)
         if ref not in self.members[cID].rooms:
@@ -126,9 +126,9 @@ class chatRoom ():
     
     
     def getMembers(self, ref):
-        print ("current rooms:", self.rooms)
+        # print ("current rooms:", self.rooms)
         if ref in self.rooms:
-            print ("ref is in it!")
+            # print ("ref is in it!")
             memberIDs = self.rooms[ref].members
             memberSockets = [ self.members[cID].sock for cID in memberIDs ] 
             return memberIDs, memberSockets
