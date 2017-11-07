@@ -97,7 +97,7 @@ class chat_server():
                 break
         if commandMatched == False:
             print ("no command matched")
-            self.broadcast(self.SOCKET_LIST, sock, '[' + str(sock.getpeername()) + '] \n' + data)
+            # self.broadcast(self.SOCKET_LIST, sock, '[' + str(sock.getpeername()) + '] \n' + data)
             response = None
         return response
 
