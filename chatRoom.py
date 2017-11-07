@@ -5,59 +5,66 @@ import threading
 import socket as sock
 import select
 import sys
+# import Lock
+
+class member ():
+    def __init__(self, sock, name, cID):
+        self.sock = sock
+        self.name = name
+        self.addr = sock.getsockname()
+        self.cID = cID
+        self.rooms = []
+
+# class room (object):
+class room ():
+    def __init__(self, name, ref):
+        self.name = name
+        self.ref = ref
+        self.members = []
+    def __hash__(self):
+        return self.ref
+    def __cmp__(self, other):
+        return (self.ref) == (other.ref)
+    def __eq__(self, other):
+        return (self.ref) == (other.ref)
+    def __ne__(self, other):
+        return not (self == other)
+
 class chatRoom ():
     def __init__(self):
         self.num_rooms = 0
         self.num_clients = 0
-        self.room2ref = {}
-        self.ref2room = {}
-        self.ref2id = {}
-        self.id2server = {} 
-        self.id2ref = {}
-        self.id2name = {}
-        self.name2id = {}
-        # self.roomLock = threading.Lock()
-        # self.clientLock = threading.Lock()
+        self.members = {}       # id->member
+        self.rooms = {}         # room_ref->room
+        self.name2room = {}     # room_name -> ref
+        self.name2id = {} 
+        # self.num_roomsLock = Lock()
+        # self.num_membersLock = Lock()
 
-    def join_chatroom(self, parsed_data):
+    def join_chatroom(self, parsed_data, sock):
         print ("in j_c in cr")
         ref = self.getRoom(parsed_data["JOIN_CHATROOM"])
-        cID = self.getClient(parsed_data["CLIENT_NAME"])
+        cID = self.getClient(parsed_data["CLIENT_NAME"], sock)
         print ("ref:", ref)
         print ("cID", cID)
-        if self.add2room(ref, cID) == 0:
-            print ("add2room == 0")
+        if cID not in self.rooms[ref].members:
+            self.rooms[ref].members.append(cID)
+        if ref not in self.members[cID].rooms:
+            self.members[cID].rooms.append(ref)
         return ref, cID
-
-    def add2room(self, ref, cID):
-        print ("ref:", ref)
-        print ("cID:", cID)
-        self.ref2id[ref].append(cID)
-        self.id2ref[cID].append(ref)
-        return 0
 
     def leave_chatroom(self, parsed_data):
         ref = parsed_data["LEAVE_CHATROOM"]
         cID = parsed_data["JOIN_ID"]
-        if ref in self.ref2id and cID in self.ref2id[ref]:
-            self.ref2id[ref].remove(cID)
+        if ref in self.rooms and cID in self.rooms[ref].members:
+            self.rooms[ref].members.remove(cID)
         else:
             return 1
-        if cId in self.id2ref and ref in self.id2ref[cID]:
-            self.id2ref[cID].remove(ref)
+        if cId in self.members and ref in self.members[cID].rooms:
+            self.members[cID].rooms.remove(ref)
         else:
             return 2
         return 0
-
-    # def chat(self, ref, message):
-    #     for key in self.ref2id:
-    #         print (key, type(key))
-    #     for member in self.ref2id[int(ref)]:
-    #         server = self.id2server[member]
-    #         socket = sock.socket(sock.AF_INET, sock.SOCK_STREAM)
-    #         ip, port = server.server_address
-    #         socket = server.socket
-    #         socket.sendto(message.encode(), (ip, port))
 
     def disconnect_from_server(self, parsed_data):
         name = parsed_data["CLIENT_NAME"]
@@ -81,44 +88,49 @@ class chatRoom ():
             return 2
 
     def getRoom(self, room_name):
-        if room_name in self.room2ref:
-            return self.room2ref[room_name]
+        if room_name in [ self.rooms[Room].name for Room in self.rooms ]:
+            return self.name2room[room_name]
         else:
             return self.createRoom(room_name)
     def createRoom(self, room_name):
-        self.room2ref[room_name] = self.num_rooms
-        self.ref2room[self.num_rooms] = room_name
-        self.ref2id[self.num_rooms] = []
-        self.num_rooms += 1
-        return self.num_rooms - 1
-    def findRoom(self, room_ref):
-        if room_ref in self.ref2id:
-            return self.ref2id[room_ref]
-        else:
-            return [None]
+        # num_roomsLock.aquire() 
+        try:
+            num_rooms = self.num_rooms
+            self.num_rooms += 1
+        finally:
+            pass
+            # num_roomsLock.release()
+        newRoom = room(room_name, num_rooms)
+        self.rooms[newRoom.ref] = newRoom
+        self.name2room[room_name] = newRoom.ref
+        print ("created new room", self.rooms)
+        return newRoom.ref
 
-    def createClient(self, client_name):
-        server, port = self.startServer()
-        self.id2server[port] = server
-        self.name2id[client_name] = port
-        self.id2name[port] = client_name
-        self.id2ref[port] = []
-        self.num_clients += 1
-        return port
-
-    def getClient(self, client_name):
-        if client_name in self.name2id:
+    def getClient(self, client_name, sock):
+        if client_name in [ self.members[Member].name for Member in self.members ]:
             return self.name2id[client_name]
         else:
-            return self.createClient(client_name)
-
-    def startServer(self):
-        HOST, PORT = "0.0.0.0", 0
-        server = clientServer((HOST, PORT), self)
-        # start a thread with the server. 
-        server_thread = threading.Thread(target=server.loop)
-        # exit the server thread when the main thread terminates
-        server_thread.daemon = True
-        server_thread.start()
-        port = server.client_socket.getsockname()[1]
-        return server, port
+            return self.createClient(sock, client_name)
+    def createClient(self, sock, client_name):
+        # num_membersLock.aquire() 
+        try:
+            num_clients = self.num_clients
+            self.num_clients += 1
+        finally:
+            pass
+            # num_membersLock.realease() 
+        newClient = member(sock, client_name, num_clients)
+        self.members[newClient.cID] = newClient
+        self.name2id[client_name] = newClient.cID
+        return newClient.cID
+    
+    
+    def getMembers(self, ref):
+        print ("current rooms:", self.rooms)
+        if ref in self.rooms:
+            print ("ref is in it!")
+            memberIDs = self.rooms[ref].members
+            memberSockets = [ self.members[cID].sock for cID in memberIDs ] 
+            return memberIDs, memberSockets
+        else:
+            return [], []

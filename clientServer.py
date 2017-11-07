@@ -17,10 +17,12 @@ class clientServer():
         self.client_socket = sock.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.client_socket.bind(address)
+        self.ip = address[0]
+        self.port = address[1]
         self.client_socket.listen(10)
         self.serve = True
     def kill_server(self):
-        self.server = False
+        self.serve = False
 
     def loop(self):
         while self.serve:
@@ -136,7 +138,7 @@ class clientServer():
         parsed_data = self.parseData(dataLines, parsed_data)
         print ("data parsed:", parsed_data)
         # print (type(self.server.chat_room))
-        ref, port = self.server.chat_room.join_chatroom(parsed_data)
+        ref, port = self.chat_room.join_chatroom(parsed_data)
         print ("ref:", ref)
         print ("port:", port)
         lines = [ 
@@ -161,7 +163,7 @@ class clientServer():
                 (   "JOIN_ID: ",                parsed_data["JOIN_ID"]          ),
                 (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      )
                 ]
-        self.server.chat_room.leave_chatroom(parsed_data)
+        self.chat_room.leave_chatroom(parsed_data)
         send = False
         room = self.chat_room.findRoom(ref)
         msg = self.compose_msg(lines)
@@ -203,7 +205,7 @@ class clientServer():
         lines = [
                 (   data,                    ""                                 ),
                 (   "IP: ",                  str(ipgetter.myip())               ),
-                (   "Port: ",                self.server.server_address[1]      ),
+                (   "Port: ",                self.serve.server_address[1]      ),
                 (   "StudentID: ",           12302202                           )
                 ]
         # response = data + "IP:[{}]\nPort:[{}]\nStudentID:[{}]\n".format(self.server.server_address[0], self.server.server_address[1], 12302202)

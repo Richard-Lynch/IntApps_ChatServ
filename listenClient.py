@@ -4,11 +4,13 @@ import socket
 import sys
 import select
 class client():
-    def __init__(self, ip, port, message):
-        print ("in init")
+    def __init__(self, ip, port, message, name):
+        # print ("in init")
+        self.name = name
         self.joinFirst(ip, port, message)
-        print ("finished joining")
+        # print ("finished joining")
         self.loop()
+
         # read_sockets, write_sockets, error_sockets = select.select([self.sock], [], [])
         # while 1:
         #     (conn, (IP, PORT)) = lsock.accept()
@@ -22,15 +24,18 @@ class client():
         self.sock.connect((ip, port))
         parsed_data = self.joinChatroom(message)
         print ("parsed:", parsed_data)
-        self.sock.close()
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.ip = ip
-        self.port = int(parsed_data["PORT"])
-        print ("port", self.port)
-        try:
-            self.sock.connect((self.ip, self.port))
-        except:
-            print ("unable to connect")
+        # self.sock.close()
+        # self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.ip, self.port = self.sock.getsockname()
+        self.id = parsed_data["JOIN_ID"]
+        self.ref = parsed_data["ROOM_REF"]
+        print (self.port)
+        # self.port = int(parsed_data["PORT"])
+        # print ("port", self.port)
+        # try:
+        #     self.sock.connect((self.ip, self.port))
+        # except:
+        #     print ("unable to connect")
 
     def joinChatroom(self, message):
         msg = self.join(message)
@@ -40,7 +45,7 @@ class client():
         print("Received: \n{}".format(response))
         lines = self.parseLines(response)
         print ("lines:", lines)
-        parsed_data = { "CLIENT_IP" : None, "PORT" : None, "CLIENT_NAME" : None, "JOIN_CHATROOM" : None } 
+        parsed_data = { "JOINED_CHATROOM" : None, "SERVER_IP" : None, "PORT" : None,  "ROOM_REF" : None, "JOIN_ID" : None } 
         parsed_data = self.parseData(lines, parsed_data)
         return parsed_data
 
@@ -58,42 +63,43 @@ class client():
                         sys.exit()
                     else :
                         #print data
-                        sys.stdout.write(data.decode())
+                        sys.stdout.write("\r" + data.decode())
                         sys.stdout.write('[Me] '); sys.stdout.flush() 
                 else:
                     # user entered a message
                     msg = sys.stdin.readline()
                     commands = msg.split()
-                    print("len:", len(commands))
+                    # print("len:", len(commands))
                     if commands[0].startswith("send"):
-                        print ("in send")
-                        if len(commands) > 2:
-                            print ("past send if")
-                            self.send(commands[1], commands[1:])
+                        # print ("in send")
+                        if len(commands) > 1:
+                            # print ("past send if")
+                            self.send(commands[1:])
                     elif commands[0].startswith("join"):
-                        print ("in join")
+                        # print ("in join")
                         if len(commands) == 2:
-                            print ("past join if")
+                            # print ("past join if")
                             self.sock.send(self.join(commands[1]).encode())
                     elif commands[0].startswith("leave"):
-                        print ("in leave")
+                        # print ("in leave")
                         if len(commands) == 2:
-                            print ("past leave if")
+                            # print ("past leave if")
                             self.leave(commands[1])
                     elif commands[0].startswith("term"):
-                        print ("in term")
+                        # print ("in term")
                         if len(commands) == 2:
-                            print ("past term if")
+                            # print ("past term if")
                             self.term(commands[1]) 
                     sys.stdout.write('[Me] '); sys.stdout.flush() 
 
-    def send(self, room, message):
-        mess = "".join(message)
+    def send(self, message):
+        mess = " ".join(message)
         msg = "\
-CHAT: 0\n\
+CHAT: {}\n\
 JOIN_ID: {}\n\
-CLIENT_NAME: Richie\n\
-MESSAGE: {}\n".format(self.port, mess)
+CLIENT_NAME: {}\n\
+MESSAGE: {}\n".format(self.ref, self.id, self.name, mess)
+        print (msg)
         self.sock.send(msg.encode())
 
     def join(self, room):
@@ -101,7 +107,7 @@ MESSAGE: {}\n".format(self.port, mess)
 JOIN_CHATROOM: {}\n\
 CLIENT_IP: 0\n\
 PORT: 0\n\
-CLIENT_NAME: Richie\n".format(room)
+CLIENT_NAME: {}\n".format(room, self.name)
         return msg
         # self.sock.send(msg.encode())
 
@@ -111,9 +117,9 @@ CLIENT_NAME: Richie\n".format(room)
         pass
 
     def parseLines(self, dataString):
-        print ("in parseLines")
+        # print ("in parseLines")
         lineList = dataString.splitlines()
-        print ("done parseLines")
+        # print ("done parseLines")
         return lineList
 
     def parseCommands(self, firstLine):
@@ -139,4 +145,6 @@ CLIENT_NAME: Richie\n".format(room)
                         expected[key] = "{}".format(parsedLine[1])
         return expected
 port = int(sys.argv[1])
-sys.exit(client("0.0.0.0", port, "helloWorld"))
+user = str(sys.argv[2])
+
+sys.exit(client("0.0.0.0", port, "helloWorld", user))
