@@ -77,6 +77,7 @@ class chat_server():
         return True
 
     def respond(self, sock, response):
+        print ("Responding with:\n{}".format(response))
         try :
             sock.send(response.encode())
         except :
