@@ -43,26 +43,32 @@ class chatRoom ():
 
     def join_chatroom(self, parsed_data, sock):
         # print ("in j_c in cr")
-        ref = self.getRoom(parsed_data["JOIN_CHATROOM"])
-        cID = self.getClient(parsed_data["CLIENT_NAME"], sock)
+        ref = int(self.getRoom(parsed_data["JOIN_CHATROOM"]))
+        cID = int(self.getClient(parsed_data["CLIENT_NAME"], sock))
         # print ("ref:", ref)
         # print ("cID", cID)
         if cID not in self.rooms[ref].members:
+            print("member {} not in room {}".format(cID, ref))
             self.rooms[ref].members.append(cID)
         if ref not in self.members[cID].rooms:
+            print("room {} not in member {}".format(ref, cID))
             self.members[cID].rooms.append(ref)
         return ref, cID
 
     def leave_chatroom(self, parsed_data, sock):
-        ref = parsed_data["LEAVE_CHATROOM"]
-        cID = parsed_data["JOIN_ID"]
-        if ref in self.rooms and cID in self.rooms[ref].members:
+        ref = int(parsed_data["LEAVE_CHATROOM"])
+        cID = int(parsed_data["JOIN_ID"])
+        if ref in self.rooms and int(cID) in self.rooms[ref].members:
+            print("room {} exists and member {} in it".format(ref, cID))
             self.rooms[ref].members.remove(cID)
         else:
+            print ("r/m not exists")
             return 1
-        if cId in self.members and ref in self.members[cID].rooms:
+        if cID in self.members and ref in self.members[cID].rooms:
+            print ("member {} exists and room {} in it".format(cID, ref))
             self.members[cID].rooms.remove(ref)
         else:
+            print ("m/r not exists")
             return 2
         return 0
 

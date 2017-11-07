@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/python3
 # chat_server.py
 import sys
 import socket
@@ -6,6 +6,7 @@ import select
 import ipgetter
 import _thread
 from chatRoom import chatRoom
+import threading
 
 class chat_server():
     def __init__(self):
@@ -27,13 +28,15 @@ class chat_server():
         self.HOST = '' 
         self.SOCKET_LIST = []
         self.RECV_BUFFER = 4096 
-        self.PORT = 9009
+        self.PORT = 9010
         self.IP = str(ipgetter.myip())
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # self.server_socket.settimeout(None)
         self.server_socket.bind((self.HOST, self.PORT))
-        self.server_socket.listen(10)
+        self.server_socket.listen(50)
         self.chat_room = chatRoom()
+        self.threadLock = threading.Lock()
      
         # add server socket object to the list of readable connections
         self.SOCKET_LIST.append(self.server_socket)
@@ -55,24 +58,7 @@ class chat_server():
         # except:
         #     print ("couldnt close sock")
     
-    def hand_client_message(self, sock):
-        # receiving data from the socket.
-        try:
-            data = sock.recv(self.RECV_BUFFER).decode()
-        except:
-            self.remove_sock(sock)
-            return
-        if data:
-            print ("Received:\n{}".format( data ))
-            response = self.handle(sock, data)
-            if response != None:
-                self.respond(sock, response)
-        else:
-            # at this stage, no data means probably the connection has been broken
-            # broadcast(server_socket, sock, "Client (%s, %s) is offline\n" % addr) 
-            print ("Client (%s, %s) is offline(hand_client)\n" % sock.getsockname())
-            # remove the socket that's broken    
-            self.remove_sock(sock)
+    def hand_client_message(self, sock, num):
 
         return True
 
@@ -80,9 +66,10 @@ class chat_server():
         print ("Responding with:\n{}".format(response))
         try :
             sock.send(response.encode())
+            print ("sent")
         except :
             # broken socket connection
-            print ("Client (%s, %s) is offline(respond)\n" % sock.getsockname())
+            print ("Client (%s, %s) is offline(respond)\n" % sock.getpeername())
             sock.close()
             self.remove_sock(sock)
 
@@ -94,13 +81,15 @@ class chat_server():
         for command in self.server_commands:
             if firstLine[0].startswith(str(command)):
                 response = self.server_commands[command](sock, data, dataLines)
+                print ("res is:", response)
                 commandMatched = True
                 break
         if commandMatched == False:
             print ("no command matched")
             # self.broadcast(self.SOCKET_LIST, sock, '[' + str(sock.getpeername()) + '] \n' + data)
             response = None
-        return response
+        if response != None:
+            self.respond(sock, response)
 
     def starts(self):
         self.run = True
@@ -108,17 +97,40 @@ class chat_server():
             # get the list sockets which are ready to be read through select
             # 4th arg, time_out  = 0 : poll and never block
             ready_to_read,ready_to_write,in_error = select.select(self.SOCKET_LIST,[],[],0)
-          
+            i = 0  
             for sock in ready_to_read:
+                print ("i:", i)
+                i += 1
                 # a new connection request recieved
                 if sock == self.server_socket: 
                     #TODO
                     sockfd, addr = self.server_socket.accept()
+                    # if sockfd not in self.SOCKET_LIST:
                     self.SOCKET_LIST.append(sockfd)
                     print ("Client [{}, {}] connected".format( addr[0], addr[1] ))
                 # a message from a client, not a new connection
                 else:
-                    _thread.start_new_thread(self.hand_client_message, (sock, ))
+                    # receiving data from the socket.
+                    try:
+                        print ("waiting to recv")
+                        data = sock.recv(self.RECV_BUFFER)
+                        print ("data:", data)
+                        data = data.decode()
+                        print ("received on")
+                    except Exception as e :
+                        print ("ecept in recv", e)
+                        self.remove_sock(sock)
+                        continue
+                    if data:
+                        print ("Received:\n\'{}\'".format( data ))
+                        # response = self.handle(sock, data)
+                        _thread.start_new_thread(self.handle, (sock, data))
+                    else:
+                        print ("Blank message received on thisnum")
+                        # at this stage, no data means probably the connection has been broken
+                        # remove the socket that's broken    
+                        self.remove_sock(sock)
+        print ("killing")
         for sock in self.SOCKET_LIST:
             sock.close()
         # self.server_socket.close()
@@ -127,12 +139,13 @@ class chat_server():
     def broadcast (self, socket_list, sock, message):
         for socket in socket_list:
             # send the message only to peer
-            if socket != self.server_socket and socket != sock:
+            if socket != self.server_socket: # and socket != sock:
                 try :
+                    print ("Broadcasting: {}\'{}\'".format(socket, message))
                     socket.send(message.encode())
                 except :
                     # broken socket connection
-                    print ("Client (%s, %s) is offline(broadcast)\n" % sock.getsockname())
+                    print ("Client (%s, %s) is offline(broadcast)\n" % sock.getpeername())
                     self.remove_sock(sock)
 # util functions 
     def compose_msg(self, output):
@@ -179,7 +192,9 @@ class chat_server():
     def join_chatroom(self, sock, data, dataLines):
         parsed_data = { "CLIENT_IP" : None, "PORT" : None, "CLIENT_NAME" : None, "JOIN_CHATROOM" : None } 
         parsed_data = self.parseData(dataLines, parsed_data)
+        self.threadLock.acquire()
         ref, cID = self.chat_room.join_chatroom(parsed_data, sock)
+        memberIDs, memberSockets = self.chat_room.getMembers(int(ref))
         lines = [ 
                 (   "JOINED_CHATROOM: ",        parsed_data["JOIN_CHATROOM"]    ),
                 (   "SERVER_IP: ",              str(ipgetter.myip())            ),
@@ -187,11 +202,30 @@ class chat_server():
                 (   "ROOM_REF: ",               ref                             ),
                 (   "JOIN_ID: ",                cID                             )
                 ]
-        memberIDs, memberSockets = self.chat_room.getMembers(ref)
+        self.respond(sock, self.compose_msg(lines))
         if cID in memberIDs:
-            msg = "{} has joined {} room\n".format(parsed_data["CLIENT_NAME"], parsed_data["JOIN_CHATROOM"])
-            self.broadcast (memberSockets, sock, msg)
-        return self.compose_msg(lines)
+            chat_lines = [
+                (   "CHAT:",                    ref                             ),
+                (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      ),
+                (   "MESSAGE: ",                parsed_data["CLIENT_NAME"] + " is joining\n"      )
+                ]
+            # memberIDs, memberSockets = self.chat_room.getMembers(int(ref))
+            if int(cID) in memberIDs:
+                # print ("member in room")
+                msg = self.compose_msg(chat_lines)
+                # print ("msg:", msg)
+                # print ("socks:", memberSockets)
+                # print ("sock:", sock)
+                # self.broadcast (memberSockets, sock, msg)
+                self.broadcast(memberSockets, sock, msg)
+                # self.respond(sock, msg)
+                # print ("broadcast")
+            # msg = "{} has joined {} room\n".format(parsed_data["CLIENT_NAME"], parsed_data["JOIN_CHATROOM"])
+                # self.broadcast (memberSockets, sock, msg)
+                print ("done joining")
+            self.threadLock.release()
+        return None
+        # return self.compose_msg(lines)
     def kill_service(self, sock, data, dataLines):
         response = "Server is going down, run it again manually!"
         self.run = False
@@ -216,38 +250,60 @@ class chat_server():
     def chat (self, sock, data, dataLines):
         parsed_data = { "CHAT" : None, "JOIN_ID" : None, "CLIENT_NAME" : None, "MESSAGE" : None }
         parsed_data = self.parseData(dataLines, parsed_data)
+        self.threadLock.acquire()
         print (parsed_data["MESSAGE"])
+        chatForm1 = "CHAT: "
+        chatForm2 = "CHAT:: "
+        if parsed_data["MESSAGE"].startswith("hello world from client 2"):
+            chatform = chatForm1
+        else:
+            chatform = chatForm2
         lines = [
-                (   "CHAT: ",                   parsed_data["CHAT"]             ),
+                (   chatform,                   parsed_data["CHAT"]             ),
                 (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      ),
-                (   "MESSAGE: ",                parsed_data["MESSAGE"]          )
+                (   "MESSAGE: ",                parsed_data["MESSAGE"] + "\n"          )
                 ]
+
         if parsed_data["JOIN_ID"] != None:
             # room = self.chat_room.findRoom(parsed_data["CHAT"])
             memberIDs, memberSockets = self.chat_room.getMembers(int(parsed_data["CHAT"]))
             if int(parsed_data["JOIN_ID"]) in memberIDs:
+                print ("member in room")
                 msg = self.compose_msg(lines)
                 self.broadcast (memberSockets, sock, msg)
-        return None
+            else: 
+                print ("member not in room")
+        self.threadLock.release()
+        return msg
         # return send, self.compose_msg(lines)
 
     def leave_chatroom(self, sock, data, dataLines):
         parsed_data = { "JOIN_ID" : None, "CLIENT_NAME" : None, "LEAVE_CHATROOM" : None } 
         parsed_data = self.parseData(dataLines, parsed_data)
+        self.threadLock.acquire()
         lines = [
                 (   "LEFT_CHATROOM: ",          parsed_data["LEAVE_CHATROOM"]   ),
                 (   "JOIN_ID: ",                parsed_data["JOIN_ID"]          ),
-                (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      )
+                # (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      )
                 ]
-        memberIDs, memberSockets = self.chat_room.getMembers(int(parsed_data["LEAVE_CHATROOM"]))
         response = None
+        memberIDs, memberSockets = self.chat_room.getMembers(int(parsed_data["LEAVE_CHATROOM"]))
         if int(parsed_data["JOIN_ID"]) in memberIDs:
-            msg = "{} has left chatroom {}\n".format(\
-                    parsed_data["CLIENT_NAME"], \
-                    self.chat_room.rooms[int(parsed_data["LEAVE_CHATROOM"])].name)
+            self.respond(sock, self.compose_msg(lines))
+            chat_lines = [
+                (   "CHAT:",                    parsed_data["LEAVE_CHATROOM"]   ),
+                (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      ),
+                (   "MESSAGE: ",                parsed_data["CLIENT_NAME"] + " leaving\n"      )
+                ]
+            msg = self.compose_msg(chat_lines)
+            # self.respond(sock, msg)
             self.broadcast(memberSockets, sock, msg)
+            print ("done leaving")
+            # self.broadcast(memberSockets, sock, msg)
             self.chat_room.leave_chatroom(parsed_data, sock)
-            response = self.compose_msg(lines)
+        else:
+            print ("not in the room..?")
+        self.threadLock.release()
         return response
 
     # def leave_chatroom(self):
