@@ -158,7 +158,11 @@ CLIENT_NAME: {}\n".format(Room, self.id, self.name)
                             msg = True
                         expected[key] = "{}".format(parsedLine[1])
         return expected
-port = int(sys.argv[1])
-user = str(sys.argv[2])
+ip = "0.0.0.0"
+if len(sys.argv) >= 3:
+    port = int(sys.argv[1])
+    user = str(sys.argv[2])
+    if len(sys.argv) > 3:
+        ip = str(sys.argv[3])
 
-sys.exit(client("0.0.0.0", port, "helloWorld", user))
+sys.exit(client(ip, port, "helloWorld", user))
