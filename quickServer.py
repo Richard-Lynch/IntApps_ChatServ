@@ -7,6 +7,7 @@ import ipgetter
 import _thread
 from chatRoom import chatRoom
 import threading
+import time 
 
 class chat_server():
     def __init__(self):
@@ -96,7 +97,9 @@ class chat_server():
         while self.run == True:
             # get the list sockets which are ready to be read through select
             # 4th arg, time_out  = 0 : poll and never block
+            self.threadLock.acquire()
             ready_to_read,ready_to_write,in_error = select.select(self.SOCKET_LIST,[],[],0)
+            self.threadLock.release()
             i = 0  
             for sock in ready_to_read:
                 print ("i:", i)
@@ -253,7 +256,7 @@ class chat_server():
         self.threadLock.acquire()
         print (parsed_data["MESSAGE"])
         chatForm1 = "CHAT: "
-        chatForm2 = "CHAT:: "
+        chatForm2 = "CHAT: "
         if parsed_data["MESSAGE"].startswith("hello world from client 2"):
             chatform = chatForm1
         else:
@@ -261,7 +264,7 @@ class chat_server():
         lines = [
                 (   chatform,                   parsed_data["CHAT"]             ),
                 (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      ),
-                (   "MESSAGE: ",                parsed_data["MESSAGE"] + "\n"          )
+                (   "MESSAGE: ",                parsed_data["MESSAGE"]          )
                 ]
 
         if parsed_data["JOIN_ID"] != None:
@@ -274,42 +277,68 @@ class chat_server():
             else: 
                 print ("member not in room")
         self.threadLock.release()
-        return msg
+        return None
+        # return msg
         # return send, self.compose_msg(lines)
 
     def leave_chatroom(self, sock, data, dataLines):
         parsed_data = { "JOIN_ID" : None, "CLIENT_NAME" : None, "LEAVE_CHATROOM" : None } 
         parsed_data = self.parseData(dataLines, parsed_data)
         self.threadLock.acquire()
-        lines = [
-                (   "LEFT_CHATROOM: ",          parsed_data["LEAVE_CHATROOM"]   ),
-                (   "JOIN_ID: ",                parsed_data["JOIN_ID"]          ),
-                # (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      )
-                ]
         response = None
-        memberIDs, memberSockets = self.chat_room.getMembers(int(parsed_data["LEAVE_CHATROOM"]))
-        if int(parsed_data["JOIN_ID"]) in memberIDs:
+        ref = int(parsed_data["LEAVE_CHATROOM"])
+        cID = int(parsed_data["JOIN_ID"])
+        name = parsed_data["CLIENT_NAME"]
+        self.really_leave_chatroom(sock, ref, cID, name, False)
+        self.threadLock.release()
+        return response
+    def really_leave_chatroom(self, sock, ref, cID, name, dis):
+        lines = [
+                (   "LEFT_CHATROOM: ",          ref                             ),
+                (   "JOIN_ID: ",                cID                             )
+                ]
+        if not dis:
             self.respond(sock, self.compose_msg(lines))
+        memberIDs, memberSockets = self.chat_room.getMembers(ref)
+        if cID in memberIDs:
             chat_lines = [
-                (   "CHAT:",                    parsed_data["LEAVE_CHATROOM"]   ),
-                (   "CLIENT_NAME: ",            parsed_data["CLIENT_NAME"]      ),
-                (   "MESSAGE: ",                parsed_data["CLIENT_NAME"] + " leaving\n"      )
+                (   "CHAT:",                    ref   ),
+                (   "CLIENT_NAME: ",            name),
+                (   "MESSAGE: ",                name + " leaving\n"      )
                 ]
             msg = self.compose_msg(chat_lines)
             # self.respond(sock, msg)
             self.broadcast(memberSockets, sock, msg)
+            # self.respond(sock, self.compose_msg(chat_lines))
             print ("done leaving")
             # self.broadcast(memberSockets, sock, msg)
-            self.chat_room.leave_chatroom(parsed_data, sock)
+            self.chat_room.leave_chatroom(ref, cID, sock)
         else:
             print ("not in the room..?")
-        self.threadLock.release()
-        return response
 
     # def leave_chatroom(self):
     #     pass
-    def disconnect_client(self):
-        pass
+    def disconnect_client(self, sock, data, dataLines):
+        parsed_data = { "DISCONNECT" : None, "PORT" : None, "CLIENT_NAME" : None } 
+        parsed_data = self.parseData(dataLines, parsed_data)
+        # lines = [
+                # (
+        self.threadLock.acquire()
+        name = parsed_data["CLIENT_NAME"]
+        cID = self.chat_room.name2id[name]
+        rooms = self.chat_room.members[cID].rooms[:]
+        for room in rooms:
+            print ("leaving room: {}".format(room))
+            self.really_leave_chatroom(sock, room, cID, name, True)
+        # msg = self.compose_msg(
+        print("waiting")
+        # time.sleep(2)
+        print("done waiting")
+        self.chat_room.disconnect_client(cID)
+        if sock in self.SOCKET_LIST:
+            self.SOCKET_LIST.remove(sock)
+        sock.close()
+        self.threadLock.release()
 
 if __name__ == "__main__":
     server = chat_server()
